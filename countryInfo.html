@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Region Info</title>
+    <style>
+      body {
+        background-image: url("https://geology.com/world/world-map.gif");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        margin: 0;
+      }
+
+      h1,
+      #regions-select,
+      #region-info,
+      #country-table,
+      #search-container {
+        color: white;
+        text-align: center;
+        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      table {
+        margin: 0 auto;
+      }
+
+      th,
+      td {
+        padding: 10px;
+      }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+
+  <body>
+    <h1>Select Region</h1>
+    <select id="regions-select">
+      <option value="">Select below</option>
+    </select>
+
+    <div id="region-info"></div>
+    <div id="search-container">
+      <!-- Section to search for a string-->
+      <input type="text" id="search-input" placeholder="Search country/city" />
+      <button id="search-button">Search</button>
+    </div>
+    <div id="country-table"></div>
+
+    <script>
+      $(document).ready(function () {
+        var regionsSelect = $("#regions-select");
+        var regionInfo = $("#region-info"); // Define regionInfo
+        var searchInput = $("#search-input"); // Define searchInput
+        var searchButton = $("#search-button"); // Define searchButton
+        var countryTable = $("#country-table"); // Define countryTable
+        var originalData = []; // Define originalData
+
+        // Fetch list of regions from the API
+        $.getJSON(
+          "https://www.cs.kent.ac.uk/people/staff/yh/api/country-data/countries/regions",
+          function (data) {
+            // Put regions in dropdown list
+            $.each(data, function (index, region) {
+              regionsSelect.append($("<option>").val(region).text(region));
+            });
+          }
+        );
+
+        regionsSelect.change(function () {
+          var selectedRegion = $(this).val();
+          if (selectedRegion) {
+            $.getJSON(
+              `https://www.cs.kent.ac.uk/people/staff/yh/api/country-data/countries/region/${selectedRegion}`,
+              function (data) {
+                originalData = data;
+                regionInfo.empty();
+                countryTable.empty();
+                var totalCountries = data.length;
+                var largestCountry = data.reduce(function (prev, current) {
+                  return prev.area > current.area ? prev : current;
+                });
+                var mostPopulatedCountry = data.reduce(function (
+                  prev,
+                  current
+                ) {
+                  return prev.population > current.population ? prev : current;
+                });
+                regionInfo.html(
+                  `<p>In ${selectedRegion} there are ${totalCountries} countries.</p>`
+                );
+                regionInfo.append(
+                  `<p>${largestCountry.name} is the largest country.</p>`
+                );
+                regionInfo.append(
+                  `<p>${mostPopulatedCountry.name} is the most populated country.</p>`
+                );
+                displayTableData(data);
+              }
+            );
+          } else {
+            //clear content if no region is selected
+            regionInfo.empty();
+            countryTable.empty();
+          }
+        });
+        //search button click event
+        searchButton.click(function () {
+          var searchValue = searchInput.val().trim().toLowerCase();
+          if (searchValue === "") {
+            // If search input is empty, display original data
+            displayTableData(originalData);
+          } else {
+            // Filter data based on search string
+            var filteredData = originalData.filter(function (country) {
+              return (
+                //checks which countries or capitals contain the value in the search string and returns them
+                country.name.toLowerCase().includes(searchValue) ||
+                country.capital.toLowerCase().includes(searchValue)
+              );
+            });
+            displayTableData(filteredData); //displays the filtered data
+          }
+        });
+        //function to display table data
+        function displayTableData(data) {
+          //creates html table to display data
+          var table = $("<table>").addClass("table table-bordered");
+          var headerRow = $("<tr>").append(
+            $("<th>").text("Country Code"),
+            $("<th>").text("Flag"),
+            $("<th>").text("Country Name"),
+            $("<th>").text("Capital"),
+            $("<th>").text("Population"),
+            $("<th>").text("Area (km²)"),
+            $("<th>").text("Population Density (/km²)")
+          );
+          //add data to table
+          table.append(headerRow);
+          $.each(data, function (index, country) {
+            var populationDensity = (country.population / country.area).toFixed(
+              1
+            );
+            var flagUrl = country.flag
+              ? `<img src="${country.flag}" alt="${country.name} Flag" width="50">`
+              : "";
+            var row = $("<tr>").append(
+              $("<td>").text(country.code),
+              $("<td>").html(flagUrl),
+              $("<td>").text(country.name),
+              $("<td>").text(country.capital),
+              $("<td>").text(country.population),
+              $("<td>").text(country.area),
+              $("<td>").text(populationDensity)
+            );
+            table.append(row);
+          });
+          countryTable.html(table);
+        }
+      });
+    </script>
+  </body>
+</html>
